@@ -3,5 +3,5 @@ HTTP Request Smuggling Testing Tool
  --
 ### TODO: 
 * TE.TE
-* CÑ.CL
+* CL.CL
 * DETECTION AUTOMATION
